@@ -1,5 +1,6 @@
 import axios from "axios";
 import puppeteer from "puppeteer";
+import fs from 'fs';
 const url = "https://vipp.com/en/api/products?";
 // Flag for testing ( True: 22 products, False: all of them ).
 const testing = false;
@@ -64,7 +65,7 @@ const scrapePage = async(page, pageLink) => {
       });
     }
     // ---------------------------
-    // IMAGES
+    // COLORS
     // ---------------------------
     //const availableColors = document.getElementsByClassName("dropdown-list")[0].children[0].innerText;
     const availableColors = document.getElementsByClassName("dropdown-list")[0].children;
@@ -73,6 +74,9 @@ const scrapePage = async(page, pageLink) => {
     }
     return data;
   })
+  // ---------------------------
+  // IMAGE LINKS
+  // ---------------------------
   productInfo.images2 = [];
   for( let i = 1; i < productInfo.colors.length+1; i++) {
     //await page.waitForTimeout(2000);
@@ -91,7 +95,7 @@ const scrapePage = async(page, pageLink) => {
       response
     ]);
     console.warn("color loaded");
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(500);
 
     const newImages = await page.evaluate(() => {
       const images = [];
@@ -114,6 +118,32 @@ const browser = await puppeteer.launch( testing ? {
 const page = await browser.newPage();
 const link = 'https://vipp.com/en/products/table-lamp';
 
-console.log( await scrapePage(page, link));
+const productInfo =  await scrapePage(page, link);
+console.log(productInfo);
 
 await browser.close();
+
+
+// ---------------------------
+// IMAGES
+// ---------------------------
+
+async function downloadImages(imageArray, productSku, imgDir) {
+  for (let i = 0; i < imageArray.length; i++) {
+    //const response = await fetch(imageArray[i]);
+    //const buffer = await response.buffer();
+    const response = await axios.get(imageArray[i],{
+      responseType: 'arraybuffer'
+    })
+    //fs.writeFile(`./images/${productSku}_${i}.jpg`, buffer, () => 
+    fs.writeFile(`./${imgDir}/${productSku}_${i}.jpg`, response.data, () => 
+      console.warn(`Downloaded ${imageArray[i]}`));
+  }
+}
+
+const imgDir = './images';
+if (!fs.existsSync(imgDir)){
+    fs.mkdirSync(imgDir);
+}
+
+await downloadImages(productInfo.images2, "VIPP42", imgDir);
