@@ -33,7 +33,7 @@ const testing = false;
 // ------------------------------------
 
 const scrapePage = async(page, pageLink) => {
-  console.warn(`Scraping: ${pageLink}`);
+  console.log(`Scraping: ${pageLink}`);
   await page.goto(pageLink);
   
   await page.addStyleTag({ content: "* {scroll-behavior: auto !important;}" });
@@ -85,16 +85,16 @@ const scrapePage = async(page, pageLink) => {
     //await hrefElement.click();
     //await page.waitForSelector("label > span");
     await page.click("label > span");
-    console.warn("label clicked");
+    console.log("label clicked");
     //await page.waitForTimeout(5000);
-    console.warn("color clicked");
+    console.log("color clicked");
     const colorClick = page.click(`ul.dropdown-list > li:nth-child(${i})`);
     const response = page.waitForResponse(response => response.url() === "https://vipp.com/en/system/ajax" && response.status() === 200 );
     await Promise.all([
       colorClick,
       response
     ]);
-    console.warn("color loaded");
+    console.log("color loaded");
     await page.waitForTimeout(500);
 
     const newImages = await page.evaluate(() => {
@@ -110,7 +110,7 @@ const scrapePage = async(page, pageLink) => {
   return productInfo;
 }
 
-console.warn("Start");
+console.log("Start");
 const browser = await puppeteer.launch( testing ? {
   headless: false,
   slowMo: 250, // 250ms delay
@@ -119,7 +119,6 @@ const page = await browser.newPage();
 const link = 'https://vipp.com/en/products/table-lamp';
 
 const productInfo =  await scrapePage(page, link);
-console.log(productInfo);
 
 await browser.close();
 
@@ -137,7 +136,7 @@ async function downloadImages(imageArray, productSku, imgDir) {
     })
     //fs.writeFile(`./images/${productSku}_${i}.jpg`, buffer, () => 
     fs.writeFile(`./${imgDir}/${productSku}_${i}.jpg`, response.data, () => 
-      console.warn(`Downloaded ${imageArray[i]}`));
+      console.log(`Downloaded ${imageArray[i]}`));
   }
 }
 
@@ -147,3 +146,12 @@ if (!fs.existsSync(imgDir)){
 }
 
 await downloadImages(productInfo.images2, "VIPP42", imgDir);
+
+// ---------------------------
+// DATA PARSING
+// ---------------------------
+
+const saveAsJson = (data) => fs.writeFileSync('data.json', JSON.stringify(data, null, 4));
+
+
+saveAsJson(productInfo);

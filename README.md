@@ -2,5 +2,5 @@
 
 # Run command
 ```
-node scraper.js > scraper.log
+node scraper.js
 ```
