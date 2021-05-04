@@ -2,6 +2,7 @@
 images/*.jpg
 
 # Logs
+allScrapedProducts.json
 logs
 *.log
 npm-debug.log*
