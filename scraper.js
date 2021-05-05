@@ -52,7 +52,6 @@ const scrapePage = async(page, pageLink) => {
       .children;
     data.sku = `vipp-${mainInfoNodes[0].innerText}`;
     data.productName = mainInfoNodes[1].innerText;
-    data.variantName = mainInfoNodes[1].innerText;
     data.description = mainInfoNodes[2].innerText;
     data.currency = mainInfoNodes[4].innerText.split(" ")[0];
     data.price = mainInfoNodes[4].innerText.split(" ")[1];
@@ -72,6 +71,7 @@ const scrapePage = async(page, pageLink) => {
       switch (name) {
         case "Design" : data.designer = content.split(",")[0]; break;
         case "Dimensions" : {
+          if(content.includes("See product illustration above")) break;
           if (content.startsWith("W x H x D:")) {
             const dimArr = content.slice(11).trim().split(" ");
             data.width = dimArr[0];
@@ -79,7 +79,7 @@ const scrapePage = async(page, pageLink) => {
             data.depth = dimArr[4];
             data.dimensions = `H: ${dimArr[2]} x W: ${dimArr[0]} x D: ${dimArr[4]} cm`
           } else {
-            data.dimensions = content;
+            data.dimensions = content.trim();
           }
           break;
         }
@@ -89,6 +89,7 @@ const scrapePage = async(page, pageLink) => {
           data.materialFilter = str.includes("wood") ? "wood" :
                                 str.includes("glass") ? "glass" :
                                 str.includes("leather") ? "leather" :
+                                str.includes("porcelain") ? "porcelain" :
                                 str.includes("steel") ? "steel" : "";
           break;
         }
@@ -106,8 +107,9 @@ const scrapePage = async(page, pageLink) => {
     if(availableColors !== undefined) {
       for( color of availableColors ) {
         data.colorsArray.push(color.innerText);
-        data.colors += color.innerText;
+        data.colors += color.innerText + ', ';
       }
+      data.colors = data.colors.slice(0, -2); 
     } else {
       data.colorsArray.push("-");
     }
@@ -150,15 +152,19 @@ const browser = await puppeteer.launch( testing.browser ? {
 } : {});
 const page = await browser.newPage();
 page.setDefaultNavigationTimeout(90000);
-// const link = 'https://vipp.com/en/products/table-lamp';
 
 const allScrapedProducts = [];
-for( let i = 0; i < links.length; i++ ) {
-  console.log(`[${i+1}/${links.length}] Scraping: ${links[i]}`);
-  const productInfo = await scrapePage(page, links[i]);
-  allScrapedProducts.push(productInfo);
+try {
+  for( let i = 0; i < links.length; i++ ) {
+    console.log(`[${i+1}/${links.length}] Scraping: ${links[i]}`);
+    const productInfo = await scrapePage(page, links[i]);
+    allScrapedProducts.push(productInfo);
+  }
+} catch (error) {
+  console.log(error);
+  await browser.close();
+  process.exit(1);
 }
-//const productInfo2 =  await scrapePage(page, "https://vipp.com/en/products/pedal-bin-4-l-1-gal");
 
 
 await browser.close();
@@ -170,7 +176,7 @@ await browser.close();
 const saveAsJson = (data, filename) => fs.writeFileSync(`${filename}.json`, JSON.stringify(data, null, 4));
 
 
-saveAsJson(allScrapedProducts, "allScrapedProducts");
+saveAsJson(allScrapedProducts, "vippProducts");
 console.log("Full data saved to json file");
 
 const csvWriter = createCsvWriter({

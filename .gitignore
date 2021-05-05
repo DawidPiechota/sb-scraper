@@ -1,9 +1,8 @@
 # Images
-images/*.jpg
+images/
 
 # Logs
-allScrapedProducts.json
-vippProducts.csv
+vippProducts.*
 logs
 *.log
 npm-debug.log*

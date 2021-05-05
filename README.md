@@ -1,6 +1,6 @@
-## Node Scraper
+# Node Scraper
 
-# Run command
+## Install and run
 ```
-node scraper.js
+npm install && node scraper.js
 ```
