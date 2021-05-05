@@ -1,6 +1,8 @@
 import axios from "axios";
 import puppeteer from "puppeteer";
 import fs from 'fs';
+import { createObjectCsvWriter as createCsvWriter } from "csv-writer";
+
 const url = "https://vipp.com/en/api/products?";
 const testing = {
   browser: false, // false: headless   | true: visual browser
@@ -163,26 +165,25 @@ await browser.close();
 // IMAGES
 // ---------------------------
 
-async function downloadImages(imageArray, productSku, imgDir) {
-  for (let i = 0; i < imageArray.length; i++) {
-    const response = await axios.get(imageArray[i],{
-      responseType: 'arraybuffer'
-    })
-    fs.writeFile(`./${imgDir}/${productSku}_${i}.jpg`, response.data, () => 
-      console.log(`\tDownloaded ${imageArray[i]}`));
-  }
-}
+// async function downloadImages(imageArray, productSku, imgDir) {
+//   for (let i = 0; i < imageArray.length; i++) {
+//     const response = await axios.get(imageArray[i],{
+//       responseType: 'arraybuffer'
+//     })
+//     fs.writeFile(`./${imgDir}/${productSku}_${i}.jpg`, response.data, () => 
+//       console.log(`\tDownloaded ${imageArray[i]}`));
+//   }
+// }
 
-const imgDir = './images';
-if (!fs.existsSync(imgDir)){
-    fs.mkdirSync(imgDir);
-}
+// const imgDir = './images';
+// if (!fs.existsSync(imgDir)){
+//     fs.mkdirSync(imgDir);
+// }
 
-for(let i = 0; i < allScrapedProducts.length; i++) {
-  console.log(`[${i+1}/${allScrapedProducts.length}] Downloading images of: ${allScrapedProducts[i].sku}`);
-  await downloadImages(allScrapedProducts[i].images, allScrapedProducts[i].sku, imgDir);
-}
-//await downloadImages(productInfo2.images, "VIPP_XD", imgDir);
+// for(let i = 0; i < allScrapedProducts.length; i++) {
+//   console.log(`[${i+1}/${allScrapedProducts.length}] Downloading images of: ${allScrapedProducts[i].sku}`);
+//   await downloadImages(allScrapedProducts[i].images, allScrapedProducts[i].sku, imgDir);
+// }
 
 // ---------------------------
 // DATA PARSING
@@ -192,4 +193,28 @@ const saveAsJson = (data, filename) => fs.writeFileSync(`${filename}.json`, JSON
 
 
 saveAsJson(allScrapedProducts, "allScrapedProducts");
-//saveAsJson(productInfo2, "data2");
+
+const csvWriter = createCsvWriter({
+  path: 'vippProducts.csv',
+  header: [
+      {id: 'sku', title: 'sku'},
+      {id: 'productName', title: 'productName'},
+      {id: 'variantName', title: 'variantName'},
+      {id: 'description', title: 'description'},
+      {id: 'price', title: 'price'},
+      {id: 'currency', title: 'currency'},
+      {id: 'brand', title: 'brand'},
+      {id: 'supplier', title: 'supplier'},
+      {id: 'designer', title: 'designer'},
+      {id: 'material', title: 'material'},
+      {id: 'materialFilter', title: 'materialFilter'},
+      {id: 'height', title: 'height'},
+      {id: 'width', title: 'width'},
+      {id: 'depth', title: 'depth'},
+      {id: 'dimensions', title: 'dimensions'},
+      {id: 'volume', title: 'volume'},
+  ]
+});
+
+await csvWriter.writeRecords(allScrapedProducts);
+console.log("All done");
