@@ -6,7 +6,7 @@ import { createObjectCsvWriter as createCsvWriter } from "csv-writer";
 const url = "https://vipp.com/en/api/products?";
 const testing = {
   browser: false, // false: headless   | true: visual browser
-  links: true     // false: all links  | true: first 5 links
+  links: false     // false: all links  | true: first 5 links
 };
 
 const reqLimit = testing.links ? 1 : 150;
@@ -42,7 +42,7 @@ const scrapePage = async(page, pageLink) => {
   // This was difficult to fix. Smooth scrolling *sometimes* prevents clicks on elements
 
   const productInfo = await page.evaluate(() => {
-    const data = {colors: [], details: []};
+    const data = {colorsArray: [], colors: "", details: []};
     // ---------------------------
     // MAIN INFO
     // ---------------------------
@@ -104,10 +104,11 @@ const scrapePage = async(page, pageLink) => {
     const availableColors = document.getElementsByClassName("dropdown-list")[0]?.children;
     if(availableColors !== undefined) {
       for( color of availableColors ) {
-        data.colors.push(color.innerText);
+        data.colorsArray.push(color.innerText);
+        data.colors += color.innerText;
       }
     } else {
-      data.colors.push("-");
+      data.colorsArray.push("-");
     }
     return data;
   })
@@ -115,8 +116,8 @@ const scrapePage = async(page, pageLink) => {
   // IMAGE LINKS
   // ---------------------------
   productInfo.images = [];
-  for( let i = 1; i < productInfo.colors.length+1; i++) {
-    if( productInfo.colors.length !== 1 ) { // case of no color options
+  for( let i = 1; i < productInfo.colorsArray.length+1; i++) {
+    if( productInfo.colorsArray.length !== 1 ) { // case of no color options
       await page.click("label > span");
       const colorClick = page.click(`ul.dropdown-list > li:nth-child(${i})`);
       const response = page.waitForResponse(response => response.url() === "https://vipp.com/en/system/ajax" && response.status() === 200 );
@@ -135,7 +136,7 @@ const scrapePage = async(page, pageLink) => {
       return images;
     });
     productInfo.images.push(...newImages);
-    console.log(`\t[Color ${i}/${productInfo.colors.length}] Image links scraped.`);
+    console.log(`\t[Color ${i}/${productInfo.colorsArray.length}] Image links scraped.`);
   }
     
   return productInfo;
@@ -147,6 +148,7 @@ const browser = await puppeteer.launch( testing.browser ? {
   slowMo: 250, // 250ms delay
 } : {});
 const page = await browser.newPage();
+page.setDefaultNavigationTimeout(90000);
 // const link = 'https://vipp.com/en/products/table-lamp';
 
 const allScrapedProducts = [];
