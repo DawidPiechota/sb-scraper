@@ -58,6 +58,7 @@ const scrapePage = async(page, pageLink) => {
     data.price = mainInfoNodes[4].innerText.split(" ")[1];
     data.brand = "Vipp";
     data.supplier = "Vipp";
+    data.deliveryTime = "usually within 5 business days";
     // ---------------------------
     // DETAILS
     // ---------------------------
@@ -92,7 +93,7 @@ const scrapePage = async(page, pageLink) => {
           break;
         }
         case "Volume" : {
-          data.volume = content;
+          data.details.push({name,content});
           break;
         }
         default: data.details.push({name,content}); break;
@@ -162,31 +163,6 @@ for( let i = 0; i < links.length; i++ ) {
 
 await browser.close();
 
-
-// ---------------------------
-// IMAGES
-// ---------------------------
-
-// async function downloadImages(imageArray, productSku, imgDir) {
-//   for (let i = 0; i < imageArray.length; i++) {
-//     const response = await axios.get(imageArray[i],{
-//       responseType: 'arraybuffer'
-//     })
-//     fs.writeFile(`./${imgDir}/${productSku}_${i}.jpg`, response.data, () => 
-//       console.log(`\tDownloaded ${imageArray[i]}`));
-//   }
-// }
-
-// const imgDir = './images';
-// if (!fs.existsSync(imgDir)){
-//     fs.mkdirSync(imgDir);
-// }
-
-// for(let i = 0; i < allScrapedProducts.length; i++) {
-//   console.log(`[${i+1}/${allScrapedProducts.length}] Downloading images of: ${allScrapedProducts[i].sku}`);
-//   await downloadImages(allScrapedProducts[i].images, allScrapedProducts[i].sku, imgDir);
-// }
-
 // ---------------------------
 // DATA PARSING
 // ---------------------------
@@ -195,28 +171,66 @@ const saveAsJson = (data, filename) => fs.writeFileSync(`${filename}.json`, JSON
 
 
 saveAsJson(allScrapedProducts, "allScrapedProducts");
+console.log("Full data saved to json file");
 
 const csvWriter = createCsvWriter({
   path: 'vippProducts.csv',
   header: [
       {id: 'sku', title: 'sku'},
-      {id: 'productName', title: 'productName'},
-      {id: 'variantName', title: 'variantName'},
+      {id: 'category', title: 'category'},
+      {id: 'brand', title: 'brand'},
+      {id: 'supplier', title: 'supplier'},
+      {id: 'parentProduct', title: 'parent_product'},
+      {id: 'productName', title: 'product_name'},
+      {id: 'variantName', title: 'variant_name'},
       {id: 'description', title: 'description'},
       {id: 'price', title: 'price'},
       {id: 'currency', title: 'currency'},
-      {id: 'brand', title: 'brand'},
-      {id: 'supplier', title: 'supplier'},
+      {id: 'colors', title: 'colors'},
+      {id: 'width', title: 'width'},
+      {id: 'height', title: 'height'},
+      {id: 'depth', title: 'depth'},
+      {id: 'weight', title: 'weight'},
       {id: 'designer', title: 'designer'},
+      {id: 'awards', title: 'awards'},
       {id: 'material', title: 'material'},
       {id: 'materialFilter', title: 'materialFilter'},
-      {id: 'height', title: 'height'},
-      {id: 'width', title: 'width'},
-      {id: 'depth', title: 'depth'},
       {id: 'dimensions', title: 'dimensions'},
-      {id: 'volume', title: 'volume'},
+      {id: 'setter', title: 'setter'},
+      {id: 'names', title: 'names'},
+      {id: 'attribute_1', title: 'attribute_1'},
+      {id: 'attribute_2', title: 'attribute_2'},
+      {id: 'attribute_3', title: 'attribute_3'},
+      {id: 'deliveryTime', title: 'delivery_time'},
   ]
 });
 
 await csvWriter.writeRecords(allScrapedProducts);
+console.log("Data saved as csv");
+
+// ---------------------------
+// IMAGES
+// ---------------------------
+
+async function downloadImages(imageArray, productSku, imgDir) {
+  for (let i = 0; i < imageArray.length; i++) {
+    const response = await axios.get(imageArray[i],{
+      responseType: 'arraybuffer'
+    })
+    fs.writeFile(`./${imgDir}/${productSku}_${i}.jpg`, response.data, () => 
+      console.log(`\tDownloaded ${imageArray[i]}`));
+  }
+}
+
+const imgDir = './images';
+if (!fs.existsSync(imgDir)){
+    fs.mkdirSync(imgDir);
+}
+
+for(let i = 0; i < allScrapedProducts.length; i++) {
+  console.log(`[${i+1}/${allScrapedProducts.length}] Downloading images of: ${allScrapedProducts[i].sku}`);
+  await downloadImages(allScrapedProducts[i].images, allScrapedProducts[i].sku, imgDir);
+}
+
+console.log("Images saved");
 console.log("All done");
