@@ -48,10 +48,14 @@ const scrapePage = async(page, pageLink) => {
       getElementsByClassName("product-info__flag")[0]
       .firstElementChild
       .children;
-    data.sku = mainInfoNodes[0].innerText;
-    data.name = mainInfoNodes[1].innerText;
+    data.sku = `vipp-${mainInfoNodes[0].innerText}`;
+    data.productName = mainInfoNodes[1].innerText;
+    data.variantName = mainInfoNodes[1].innerText;
     data.description = mainInfoNodes[2].innerText;
-    data.price = mainInfoNodes[4].innerText;
+    data.currency = mainInfoNodes[4].innerText.split(" ")[0];
+    data.price = mainInfoNodes[4].innerText.split(" ")[1];
+    data.brand = "Vipp";
+    data.supplier = "Vipp";
     // ---------------------------
     // DETAILS
     // ---------------------------
@@ -59,10 +63,38 @@ const scrapePage = async(page, pageLink) => {
     .getElementById("product-detail")
     .getElementsByClassName("row line");
     for( const rowNode of rowNodes ) {
-      data.details.push({
-        name: rowNode.children[0].innerText,
-        data: rowNode.children[1].innerText
-      });
+      const name = rowNode.children[0].innerText;
+      const content = rowNode.children[1].innerText;
+
+      switch (name) {
+        case "Design" : data.designer = content.split(",")[0]; break;
+        case "Dimensions" : {
+          if (content.startsWith("W x H x D:")) {
+            const dimArr = content.slice(11).trim().split(" ");
+            data.width = dimArr[0];
+            data.height = dimArr[2];
+            data.depth = dimArr[4];
+            data.dimensions = `H: ${dimArr[2]} x W: ${dimArr[0]} x D: ${dimArr[4]} cm`
+          } else {
+            data.dimensions = content;
+          }
+          break;
+        }
+        case "Materials" : {
+          data.material = content.replace("View care instructions").trim();
+          const str = content.toLowerCase();
+          data.materialFilter = str.includes("wood") ? "wood" :
+                                str.includes("glass") ? "glass" :
+                                str.includes("leather") ? "leather" :
+                                str.includes("steel") ? "steel" : "";
+          break;
+        }
+        case "Volume" : {
+          data.volume = content;
+          break;
+        }
+        default: data.details.push({name,content}); break;
+      }
     }
     // ---------------------------
     // COLORS
@@ -101,7 +133,7 @@ const scrapePage = async(page, pageLink) => {
       return images;
     });
     productInfo.images.push(...newImages);
-    console.log(`\t[${i}/${productInfo.colors.length}] Image links scraped.`);
+    console.log(`\t[Color ${i}/${productInfo.colors.length}] Image links scraped.`);
   }
     
   return productInfo;
