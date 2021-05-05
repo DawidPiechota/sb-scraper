@@ -83,7 +83,7 @@ const scrapePage = async(page, pageLink) => {
           break;
         }
         case "Materials" : {
-          data.material = content.replace("View care instructions").trim();
+          data.material = content.replace("View care instructions","").trim();
           const str = content.toLowerCase();
           data.materialFilter = str.includes("wood") ? "wood" :
                                 str.includes("glass") ? "glass" :
