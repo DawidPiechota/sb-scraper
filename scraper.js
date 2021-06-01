@@ -141,7 +141,34 @@ const scrapePage = async(page, pageLink) => {
     productInfo.images.push(...newImages);
     console.log(`\t[Color ${i}/${productInfo.colorsArray.length}] Image links scraped.`);
   }
-    
+  
+  // ---------------------------
+  // SHIPPING
+  // ---------------------------
+  
+  
+  // Add to cart
+  // document.querySelector("#edit-submit")
+  // wait for selector document.querySelector("#number-item-in-cart")
+  
+  // go to cart
+  // document.querySelector("img.basket-icn.basket-icn--black").click()
+
+  // productInfo.deliveryTime = document.querySelector("div.shipping-select > div > p").innerText;
+  
+  // go to checkout document.querySelector("#add-to-cart > input").click();
+  // wait for navigation
+
+  // productInfo.fastTrack = [...document.getElementsByClassName("option")]
+  //   .map(el => el.innerText.toLowerCase().includes("express"))
+  //   .reduce((acc, el) => el === true ? true : acc, false);
+  
+  // go back
+  // wait for navigation
+  
+  // delete item from cart document.querySelector("#edit-edit-delete-0").submit();
+  // document.querySelector("span.commerce-quantity-plusminus-link.commerce-quantity-plusminus-link-decrease.minus.commerce-quantity-plusminus-link-disabled > a").click()
+  
   return productInfo;
 }
 
@@ -223,7 +250,7 @@ async function downloadImages(imageArray, productSku, imgDir) {
     const response = await axios.get(imageArray[i],{
       responseType: 'arraybuffer'
     })
-    fs.writeFile(`./${imgDir}/${productSku}_${i}.jpg`, response.data, () => 
+    fs.writeFile(`./${imgDir}/${productSku}_${i == 0 ? '' : i - 1}.jpg`, response.data, () => 
       console.log(`\tDownloaded ${imageArray[i]}`));
   }
 }
