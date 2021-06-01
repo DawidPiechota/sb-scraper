@@ -201,7 +201,13 @@ const scrapePage = async(page, pageLink) => {
       }
       return images;
     });
-    productInfo.images.push(...newImages);
+    const parsedImages = newImages.map(image => ({
+        src: image,
+        filename: productInfo.colorsArray[i-1] !== '-' ?
+          `${productInfo.sku}-${productInfo.colorsArray[i-1].toLowerCase()}` :
+          productInfo.sku
+      }));
+    productInfo.images.push(...parsedImages);
     console.log(`\t[Color ${i}/${productInfo.colorsArray.length}] Image links scraped.`);
   }
 
@@ -282,13 +288,22 @@ console.log("Data saved as csv");
 // IMAGES
 // ---------------------------
 
-async function downloadImages(imageArray, productSku, imgDir) {
-  for (let i = 0; i < imageArray.length; i++) {
-    const response = await axios.get(imageArray[i],{
+async function downloadImages(imageArray, imgDir) {
+  let count = 1;
+  let previousFilename = '';
+  for (const image of imageArray) {
+    const response = await axios.get(image.src,{
       responseType: 'arraybuffer'
     })
-    fs.writeFile(`./${imgDir}/${productSku}_${i == 0 ? '' : i - 1}.jpg`, response.data, () => 
-      console.log(`\tDownloaded ${imageArray[i]}`));
+    if(previousFilename === image.filename) {
+      fs.writeFileSync(`./${imgDir}/${image.filename}_${count}}.jpg`, response.data);
+      count++;
+    } else {
+      fs.writeFileSync(`./${imgDir}/${image.filename}.jpg`, response.data);
+      count = 1;
+    }
+    previousFilename = image.filename;
+    console.log(`\tDownloaded ${image.filename} from ${image.src}`);
   }
 }
 
@@ -299,7 +314,7 @@ if (!fs.existsSync(imgDir)){
 
 for(let i = 0; i < allScrapedProducts.length; i++) {
   console.log(`[${i+1}/${allScrapedProducts.length}] Downloading images of: ${allScrapedProducts[i].sku}`);
-  await downloadImages(allScrapedProducts[i].images, allScrapedProducts[i].sku, imgDir);
+  await downloadImages(allScrapedProducts[i].images, imgDir);
 }
 
 console.log("Images saved");
