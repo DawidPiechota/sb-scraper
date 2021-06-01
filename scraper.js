@@ -6,7 +6,7 @@ import { createObjectCsvWriter as createCsvWriter } from "csv-writer";
 const url = "https://vipp.com/en/api/products?";
 const testing = {
   browser: false, // false: headless   | true: visual browser
-  links: false     // false: all links  | true: first 5 links
+  links: true     // false: all links  | true: first 5 links
 };
 
 const reqLimit = testing.links ? 1 : 150;
@@ -41,6 +41,69 @@ const scrapePage = async(page, pageLink) => {
   await page.addStyleTag({ content: "* {scroll-behavior: auto !important;}" });
   // This was difficult to fix. Smooth scrolling *sometimes* prevents clicks on elements
 
+  const shippingInfo = {};
+
+  // ---------------------------
+  // SHIPPING
+  // ---------------------------
+  await page.waitForTimeout(1000);
+  await page.evaluate(() => {
+    document.querySelector("form[id^=commerce-cart-add-to-cart]").submit();
+  });
+  await page.waitForTimeout(500);
+
+  await page.waitForSelector("#number-item-in-cart");
+
+  // go to cart
+  // document.querySelector("img.basket-icn.basket-icn--black").click()
+  // wait for navigation
+  await Promise.all([
+    page.click("img.basket-icn.basket-icn--black"),
+    page.waitForNavigation() // Disable when headless i think
+   ]);
+
+  await page.addStyleTag({ content: "* {scroll-behavior: auto !important;}" });
+  
+  // Get shipping info
+  shippingInfo.deliveryTime = await page.evaluate(() => {
+    return document.querySelector("div.shipping-select > div > p").innerText.trim();
+  });
+
+  // go to checkout document.querySelector("#add-to-cart > input").click();
+  // wait for navigation
+  await Promise.all([
+    page.click("#add-to-cart > input"),
+    page.waitForNavigation()
+   ]);
+
+   await page.waitForTimeout(1000);
+   await page.addStyleTag({ content: "* {scroll-behavior: auto !important;}" });
+
+   shippingInfo.fastTrack = await page.evaluate(() => {
+    return [...document.getElementsByClassName("option")]
+      .map(el => el.innerText.toLowerCase().includes("express"))
+      .reduce((acc, el) => el === true ? true : acc, false);
+  });
+  
+  
+  // go back
+  // wait for navigation
+  await page.goBack();
+  //await page.waitForTimeout(100000);
+  await page.addStyleTag({ content: "* {scroll-behavior: auto !important;}" });
+  // delete item from cart document.querySelector("#edit-edit-delete-0").submit();
+  // document.querySelector("span.commerce-quantity-plusminus-link.commerce-quantity-plusminus-link-decrease.minus.commerce-quantity-plusminus-link-disabled > a").click()
+  //dupaaaa await page.waitForTimeout(1000);
+  //await page.click("span.commerce-quantity-plusminus-link.commerce-quantity-plusminus-link-decrease.minus > a");
+  await page.click("#edit-edit-delete-0");
+  //dupaaaa await page.waitForTimeout(1000);
+  await page.waitForTimeout(500);
+
+  await page.goBack();
+  await page.addStyleTag({ content: "* {scroll-behavior: auto !important;}" });
+  
+  console.log(shippingInfo);
+  
   const productInfo = await page.evaluate(() => {
     const data = {colorsArray: [], colors: "", details: []};
     // ---------------------------
@@ -109,7 +172,7 @@ const scrapePage = async(page, pageLink) => {
         data.colorsArray.push(color.innerText);
         data.colors += color.innerText + ', ';
       }
-      data.colors = data.colors.slice(0, -2); 
+      data.colors = data.colors.slice(0, -2);
     } else {
       data.colorsArray.push("-");
     }
@@ -141,35 +204,8 @@ const scrapePage = async(page, pageLink) => {
     productInfo.images.push(...newImages);
     console.log(`\t[Color ${i}/${productInfo.colorsArray.length}] Image links scraped.`);
   }
-  
-  // ---------------------------
-  // SHIPPING
-  // ---------------------------
-  
-  
-  // Add to cart
-  // document.querySelector("#edit-submit")
-  // wait for selector document.querySelector("#number-item-in-cart")
-  
-  // go to cart
-  // document.querySelector("img.basket-icn.basket-icn--black").click()
 
-  // productInfo.deliveryTime = document.querySelector("div.shipping-select > div > p").innerText;
-  
-  // go to checkout document.querySelector("#add-to-cart > input").click();
-  // wait for navigation
-
-  // productInfo.fastTrack = [...document.getElementsByClassName("option")]
-  //   .map(el => el.innerText.toLowerCase().includes("express"))
-  //   .reduce((acc, el) => el === true ? true : acc, false);
-  
-  // go back
-  // wait for navigation
-  
-  // delete item from cart document.querySelector("#edit-edit-delete-0").submit();
-  // document.querySelector("span.commerce-quantity-plusminus-link.commerce-quantity-plusminus-link-decrease.minus.commerce-quantity-plusminus-link-disabled > a").click()
-  
-  return productInfo;
+  return {...productInfo, ...shippingInfo};
 }
 
 console.log("Starting browser");
@@ -178,7 +214,7 @@ const browser = await puppeteer.launch( testing.browser ? {
   slowMo: 250, // 250ms delay
 } : {});
 const page = await browser.newPage();
-page.setDefaultNavigationTimeout(90000);
+// page.setDefaultNavigationTimeout(90000);
 
 const allScrapedProducts = [];
 try {
@@ -189,11 +225,12 @@ try {
   }
 } catch (error) {
   console.log(error);
+  console.log("closing browser");
   await browser.close();
   process.exit(1);
 }
 
-
+console.log("closing browser");
 await browser.close();
 
 // ---------------------------
