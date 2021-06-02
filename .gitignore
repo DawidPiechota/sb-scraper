@@ -1,8 +1,10 @@
 # Images
-images/
+images*/
+rest/
 
 # Logs
 vippProducts.*
+*.xlsx
 logs
 *.log
 npm-debug.log*
