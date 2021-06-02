@@ -64,7 +64,7 @@ const scrapePage = async(page, pageLink) => {
     // wait for navigation
     await Promise.all([
       page.click("img.basket-icn.basket-icn--black"),
-      page.waitForNavigation() // Disable when headless i think
+      page.waitForNavigation() // I think it breaks nonheadless browser
     ]);
 
     await page.addStyleTag({ content: "* {scroll-behavior: auto !important;}" });
@@ -139,18 +139,22 @@ const scrapePage = async(page, pageLink) => {
         case "Design" : data.designer = content.split(",")[0]; break;
         case "Dimensions" : {
           if(content.includes("See product illustration above")) break;
+          const dimArr = content.slice(11).trim().split(" ");
           if (content.startsWith("W x H x D:")) {
-            const dimArr = content.slice(11).trim().split(" ");
             data.width = dimArr[0];
             data.height = dimArr[2];
             data.depth = dimArr[4];
             data.dimensions = `H: ${dimArr[2]} x W: ${dimArr[0]} x D: ${dimArr[4]} cm`
           }else if (content.startsWith("W x D x H:")) {
-            const dimArr = content.slice(11).trim().split(" ");
             data.width = dimArr[0];
             data.height = dimArr[4];
             data.depth = dimArr[2];
             data.dimensions = `H: ${dimArr[4]} x W: ${dimArr[0]} x D: ${dimArr[2]} cm`
+          }else if (content.startsWith("H x D x W:")) {
+            data.width = dimArr[4];
+            data.height = dimArr[0];
+            data.depth = dimArr[2];
+            data.dimensions = `H: ${dimArr[0]} x W: ${dimArr[4]} x D: ${dimArr[2]} cm`
           } else {
             data.dimensions = content.trim();
           }
@@ -179,7 +183,7 @@ const scrapePage = async(page, pageLink) => {
     const availableColors = document.getElementsByClassName("dropdown-list")[0]?.children;
     if(availableColors !== undefined) {
       for( color of availableColors ) {
-        let colorTrimmed = color.innerText.slice();
+        let colorTrimmed = color.innerText.slice().replaceAll('/','|');
         if(colorTrimmed.endsWith("(OUT OF STOCK)")) {
           colorTrimmed = colorTrimmed.slice(0,-14).trim();
         }
