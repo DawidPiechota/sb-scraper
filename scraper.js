@@ -6,7 +6,7 @@ import { createObjectCsvWriter as createCsvWriter } from "csv-writer";
 const url = "https://vipp.com/en/api/products?";
 const testing = {
   browser: false, // false: headless   | true: visual browser
-  links: true     // false: all links  | true: first 5 links
+  links: false     // false: all links  | true: first 5 links
 };
 
 const reqLimit = testing.links ? 1 : 150;
@@ -30,7 +30,8 @@ try {
 
 links = links.map(el => `https://vipp.com${el.link}`);
 console.log(`Products to scrape: (${links.length}):`);
-
+// One link testing:
+// links = ["https://vipp.com/en/products/swivel-chair-w-castors"];
 // ------------------------------------
 // Puppeteer
 // ------------------------------------
@@ -46,63 +47,65 @@ const scrapePage = async(page, pageLink) => {
   // ---------------------------
   // SHIPPING
   // ---------------------------
-  await page.waitForTimeout(1000);
-  await page.evaluate(() => {
-    document.querySelector("form[id^=commerce-cart-add-to-cart]").submit();
-  });
-  await page.waitForTimeout(500);
+  const outOfStock = await page.evaluate(() => {
+    return !!document.querySelector("#edit-out-of-stock");
+  })
+  if(!outOfStock) {
+    await page.waitForTimeout(1000);
+    await page.evaluate(() => {
+      document.querySelector("form[id^=commerce-cart-add-to-cart]").submit();
+    });
+    await page.waitForTimeout(500);
 
-  await page.waitForSelector("#number-item-in-cart");
+    await page.waitForSelector("#number-item-in-cart");
 
-  // go to cart
-  // document.querySelector("img.basket-icn.basket-icn--black").click()
-  // wait for navigation
-  await Promise.all([
-    page.click("img.basket-icn.basket-icn--black"),
-    page.waitForNavigation() // Disable when headless i think
-   ]);
+    // go to cart
+    // document.querySelector("img.basket-icn.basket-icn--black").click()
+    // wait for navigation
+    await Promise.all([
+      page.click("img.basket-icn.basket-icn--black"),
+      page.waitForNavigation() // Disable when headless i think
+    ]);
 
-  await page.addStyleTag({ content: "* {scroll-behavior: auto !important;}" });
-  
-  // Get shipping info
-  shippingInfo.deliveryTime = await page.evaluate(() => {
-    return document.querySelector("div.shipping-select > div > p").innerText.trim();
-  });
+    await page.addStyleTag({ content: "* {scroll-behavior: auto !important;}" });
+    
+    // Get shipping info
+    shippingInfo.deliveryTime = await page.evaluate(() => {
+      return document.querySelector("div.shipping-select > div > p").innerText.trim();
+    });
 
-  // go to checkout document.querySelector("#add-to-cart > input").click();
-  // wait for navigation
-  await Promise.all([
-    page.click("#add-to-cart > input"),
-    page.waitForNavigation()
-   ]);
+    // go to checkout document.querySelector("#add-to-cart > input").click();
+    // wait for navigation
+    await Promise.all([
+      page.click("#add-to-cart > input"),
+      page.waitForNavigation()
+    ]);
 
-   await page.waitForTimeout(1000);
-   await page.addStyleTag({ content: "* {scroll-behavior: auto !important;}" });
+    await page.waitForTimeout(1000);
+    await page.addStyleTag({ content: "* {scroll-behavior: auto !important;}" });
 
-   shippingInfo.fastTrack = await page.evaluate(() => {
-    return [...document.getElementsByClassName("option")]
-      .map(el => el.innerText.toLowerCase().includes("express"))
-      .reduce((acc, el) => el === true ? true : acc, false);
-  });
-  
-  
-  // go back
-  // wait for navigation
-  await page.goBack();
-  //await page.waitForTimeout(100000);
-  await page.addStyleTag({ content: "* {scroll-behavior: auto !important;}" });
-  // delete item from cart document.querySelector("#edit-edit-delete-0").submit();
-  // document.querySelector("span.commerce-quantity-plusminus-link.commerce-quantity-plusminus-link-decrease.minus.commerce-quantity-plusminus-link-disabled > a").click()
-  //dupaaaa await page.waitForTimeout(1000);
-  //await page.click("span.commerce-quantity-plusminus-link.commerce-quantity-plusminus-link-decrease.minus > a");
-  await page.click("#edit-edit-delete-0");
-  //dupaaaa await page.waitForTimeout(1000);
-  await page.waitForTimeout(500);
-
-  await page.goBack();
-  await page.addStyleTag({ content: "* {scroll-behavior: auto !important;}" });
-  
-  console.log(shippingInfo);
+    shippingInfo.fastTrack = await page.evaluate(() => {
+      return [...document.getElementsByClassName("option")]
+        .map(el => el.innerText.toLowerCase().includes("express"))
+        .reduce((acc, el) => el === true ? true : acc, false);
+    });
+    
+    
+    // go back
+    // wait for navigation
+    await page.goBack();
+    //await page.waitForTimeout(100000);
+    await page.addStyleTag({ content: "* {scroll-behavior: auto !important;}" });
+    // delete item from cart document.querySelector("#edit-edit-delete-0").submit();
+    // document.querySelector("span.commerce-quantity-plusminus-link.commerce-quantity-plusminus-link-decrease.minus.commerce-quantity-plusminus-link-disabled > a").click()
+    //dupaaaa await page.waitForTimeout(1000);
+    //await page.click("span.commerce-quantity-plusminus-link.commerce-quantity-plusminus-link-decrease.minus > a");
+    await page.click("#edit-edit-delete-0");
+    //dupaaaa await page.waitForTimeout(1000);
+    await page.waitForTimeout(500);
+    await page.goBack();
+    await page.addStyleTag({ content: "* {scroll-behavior: auto !important;}" });
+  }
   
   const productInfo = await page.evaluate(() => {
     const data = {colorsArray: [], colors: "", details: []};
@@ -115,12 +118,13 @@ const scrapePage = async(page, pageLink) => {
       .children;
     data.sku = `vipp-${mainInfoNodes[0].innerText}`;
     data.productName = mainInfoNodes[1].innerText;
+    data.variantName = mainInfoNodes[1].innerText;
     data.description = mainInfoNodes[2].innerText;
     data.currency = mainInfoNodes[4].innerText.split(" ")[0];
     data.price = mainInfoNodes[4].innerText.split(" ")[1];
     data.brand = "Vipp";
     data.supplier = "Vipp";
-    data.deliveryTime = "usually within 5 business days";
+    //data.deliveryTime = "usually within 5 business days";
     // ---------------------------
     // DETAILS
     // ---------------------------
@@ -141,6 +145,12 @@ const scrapePage = async(page, pageLink) => {
             data.height = dimArr[2];
             data.depth = dimArr[4];
             data.dimensions = `H: ${dimArr[2]} x W: ${dimArr[0]} x D: ${dimArr[4]} cm`
+          }else if (content.startsWith("W x D x H:")) {
+            const dimArr = content.slice(11).trim().split(" ");
+            data.width = dimArr[0];
+            data.height = dimArr[4];
+            data.depth = dimArr[2];
+            data.dimensions = `H: ${dimArr[4]} x W: ${dimArr[0]} x D: ${dimArr[2]} cm`
           } else {
             data.dimensions = content.trim();
           }
@@ -169,8 +179,12 @@ const scrapePage = async(page, pageLink) => {
     const availableColors = document.getElementsByClassName("dropdown-list")[0]?.children;
     if(availableColors !== undefined) {
       for( color of availableColors ) {
-        data.colorsArray.push(color.innerText);
-        data.colors += color.innerText + ', ';
+        let colorTrimmed = color.innerText.slice();
+        if(colorTrimmed.endsWith("(OUT OF STOCK)")) {
+          colorTrimmed = colorTrimmed.slice(0,-14).trim();
+        }
+        data.colorsArray.push(colorTrimmed);
+        data.colors += colorTrimmed + ', ';
       }
       data.colors = data.colors.slice(0, -2);
     } else {
@@ -197,21 +211,40 @@ const scrapePage = async(page, pageLink) => {
     const newImages = await page.evaluate(() => {
       const images = [];
       for( image of document.querySelectorAll("div.wrapper-img > img") ) {
-        images.push(image.getAttribute("src"));
+        images.push({
+          src: image.getAttribute("src"),
+          type: "packshot"
+        });
       }
+      images.push({
+        src: document.querySelector("div.full.slide-to-top img").getAttribute("src"),
+        type: "lifestyle",
+      });
       return images;
     });
-    const parsedImages = newImages.map(image => ({
-        src: image,
-        filename: productInfo.colorsArray[i-1] !== '-' ?
+
+    const parsedImages = newImages.map(image => {
+      if(image.type === "lifestyle"){
+        return ({
+          src: image.src,
+          filename: productInfo.colorsArray[i-1] !== '-' ?
+          `${productInfo.sku}-${productInfo.colorsArray[i-1].toLowerCase()}-lifestyle` :
+          `${productInfo.sku}-lifestyle`
+        })
+      } else {
+        return ({
+          src: image.src,
+          filename: productInfo.colorsArray[i-1] !== '-' ?
           `${productInfo.sku}-${productInfo.colorsArray[i-1].toLowerCase()}` :
           productInfo.sku
-      }));
+        })
+      }
+      });
     productInfo.images.push(...parsedImages);
     console.log(`\t[Color ${i}/${productInfo.colorsArray.length}] Image links scraped.`);
   }
 
-  return {...productInfo, ...shippingInfo};
+  return {...productInfo, ...shippingInfo, ...{pageLink: pageLink}};
 }
 
 console.log("Starting browser");
@@ -222,7 +255,7 @@ const browser = await puppeteer.launch( testing.browser ? {
 const page = await browser.newPage();
 // page.setDefaultNavigationTimeout(90000);
 
-const allScrapedProducts = [];
+let allScrapedProducts = [];
 try {
   for( let i = 0; i < links.length; i++ ) {
     console.log(`[${i+1}/${links.length}] Scraping: ${links[i]}`);
@@ -242,7 +275,33 @@ await browser.close();
 // ---------------------------
 // DATA PARSING
 // ---------------------------
+const parseProductsToColorVariants = (products) => {
+  const newProducts = [];
+  for ( const product of products ) {
+    for( const color of product.colorsArray ) {
+      if(color === '-') {
+        const pcpy = {...product};
+        pcpy.colors = "";
+        newProducts.push(pcpy);
+      } else {
+        const pcpy = {...product};
+        pcpy.setter = "attribute_1";
+        pcpy.names = "Color";
+        pcpy.attribute_1 = color;
+        pcpy.colors = color;
+        pcpy.sku += `-${color.toLowerCase()}`;
+        pcpy.variantName += ` ${color}`
+        newProducts.push(pcpy);
+      }
+    }
+  }
+  return newProducts;
+}
 
+allScrapedProducts = parseProductsToColorVariants(allScrapedProducts);
+// ---------------------------
+// DATA SAVING
+// ---------------------------
 const saveAsJson = (data, filename) => fs.writeFileSync(`${filename}.json`, JSON.stringify(data, null, 4));
 
 
@@ -256,9 +315,9 @@ const csvWriter = createCsvWriter({
       {id: 'category', title: 'category'},
       {id: 'brand', title: 'brand'},
       {id: 'supplier', title: 'supplier'},
-      {id: 'parentProduct', title: 'parent_product'},
-      {id: 'productName', title: 'product_name'},
-      {id: 'variantName', title: 'variant_name'},
+      {id: 'parentProduct', title: 'parentProduct'},
+      {id: 'productName', title: 'productName'},
+      {id: 'variantName', title: 'variantName'},
       {id: 'description', title: 'description'},
       {id: 'price', title: 'price'},
       {id: 'currency', title: 'currency'},
@@ -277,7 +336,9 @@ const csvWriter = createCsvWriter({
       {id: 'attribute_1', title: 'attribute_1'},
       {id: 'attribute_2', title: 'attribute_2'},
       {id: 'attribute_3', title: 'attribute_3'},
-      {id: 'deliveryTime', title: 'delivery_time'},
+      {id: 'deliveryTime', title: 'deliveryTime'},
+      {id: 'fastTrack', title: 'fastTrack'},
+      {id: 'pageLink', title: 'pageLink'},
   ]
 });
 
@@ -296,7 +357,7 @@ async function downloadImages(imageArray, imgDir) {
       responseType: 'arraybuffer'
     })
     if(previousFilename === image.filename) {
-      fs.writeFileSync(`./${imgDir}/${image.filename}_${count}}.jpg`, response.data);
+      fs.writeFileSync(`./${imgDir}/${image.filename}_${count}.jpg`, response.data);
       count++;
     } else {
       fs.writeFileSync(`./${imgDir}/${image.filename}.jpg`, response.data);
