@@ -6,7 +6,7 @@ import { createObjectCsvWriter as createCsvWriter } from "csv-writer";
 const url = "https://vipp.com/en/api/products?";
 const testing = {
   browser: false, // false: headless   | true: visual browser
-  links: false     // false: all links  | true: first 5 links
+  links: true     // false: all links  | true: first 5 links
 };
 
 const reqLimit = testing.links ? 1 : 150;
@@ -121,7 +121,7 @@ const scrapePage = async(page, pageLink) => {
     data.variantName = mainInfoNodes[1].innerText;
     data.description = mainInfoNodes[2].innerText;
     data.currency = mainInfoNodes[4].innerText.split(" ")[0];
-    data.price = mainInfoNodes[4].innerText.split(" ")[1];
+    data.price = mainInfoNodes[4].innerText.split(" ")[1].replaceAll(',','');
     data.brand = "Vipp";
     data.supplier = "Vipp";
     //data.deliveryTime = "usually within 5 business days";
@@ -258,6 +258,26 @@ const browser = await puppeteer.launch( testing.browser ? {
 } : {});
 const page = await browser.newPage();
 // page.setDefaultNavigationTimeout(90000);
+
+console.log("Setting currency to NOK");
+await page.goto("https://vipp.com/en");
+await page.addStyleTag({ content: "* {scroll-behavior: auto !important;}" });
+await page.click("body > div:nth-child(4) > div > div > div > a.btn-menu-burger");
+try {
+  await page.click("body > div:nth-child(3) > div > div > div.settings > a:nth-child(2) > span.dropdown");
+} catch (error) {
+  await page.waitForTimeout(1500)
+  await page.click("body > div.tray-menu > ul.main.menu-level.menu-current.menu-in > li:nth-child(6) > ul > li:nth-child(2) > a");
+}
+try {
+  await page.click("#country_popup > div.popup-box.list-country > div.popup-content > div > ul > li:nth-child(13)");
+} catch (error) {
+  await page.waitForTimeout(1500)
+  await page.click("body > div.tray-menu > ul.tray-menu--submenu.menu-level.submenu-4.menu-in > div > ul > li:nth-child(13) > a");
+}
+await page.waitForNavigation();
+
+
 
 let allScrapedProducts = [];
 try {
