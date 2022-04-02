@@ -6,7 +6,7 @@ import { createObjectCsvWriter as createCsvWriter } from "csv-writer";
 const url = "https://vipp.com/en/api/products?";
 const testing = {
   browser: false, // false: headless   | true: visual browser
-  links: true     // false: all links  | true: first 5 links
+  links: false     // false: all links  | true: first 5 links
 };
 
 const reqLimit = testing.links ? 1 : 150;
@@ -28,7 +28,7 @@ try {
   process.exit(1);
 }
 
-links = links.map(el => `https://vipp.com${el.link}`);
+links = links.map(el => `https://vipp.com${el.link}`).filter(e => e!== 'https://vipp.com/en/products/wool-pillow');
 console.log(`Products to scrape: (${links.length}):`);
 // One link testing:
 // links = ["https://vipp.com/en/products/swivel-chair-w-castors"];
@@ -37,7 +37,8 @@ console.log(`Products to scrape: (${links.length}):`);
 // ------------------------------------
 
 const scrapePage = async(page, pageLink) => {
-  await page.goto(pageLink);
+  await page.goto(pageLink, {waitUntil: 'networkidle0'});
+  await page.waitForTimeout(500);
   
   await page.addStyleTag({ content: "* {scroll-behavior: auto !important;}" });
   // This was difficult to fix. Smooth scrolling *sometimes* prevents clicks on elements
@@ -116,7 +117,8 @@ const scrapePage = async(page, pageLink) => {
       getElementsByClassName("product-info__flag")[0]
       .firstElementChild
       .children;
-    data.sku = `vipp-${mainInfoNodes[0].innerText}`;
+    data.sku = `vipp-${mainInfoNodes[0].innerText.replaceAll('/','-').replaceAll(' ','-').replaceAll(',','').toLowerCase().replaceAll('vipp', '')}`;
+    data.productId = `vipp-${document.querySelector('input[name=product_id]')?.value || document.querySelector('select[name=product_id] > option[selected]')?.value}`;
     data.productName = mainInfoNodes[1].innerText;
     data.variantName = mainInfoNodes[1].innerText;
     data.description = mainInfoNodes[2].innerText;
@@ -214,7 +216,7 @@ const scrapePage = async(page, pageLink) => {
 
     const newImages = await page.evaluate(() => {
       const images = [];
-      for( image of document.querySelectorAll("div.wrapper-img > img") ) {
+      for( const image of document.querySelectorAll("div.wrapper-img > img") ) {
         images.push({
           src: image.getAttribute("src"),
           type: "packshot"
@@ -232,15 +234,21 @@ const scrapePage = async(page, pageLink) => {
         return ({
           src: image.src,
           filename: productInfo.colorsArray[i-1] !== '-' ?
-          `${productInfo.sku}-${productInfo.colorsArray[i-1].toLowerCase()}-lifestyle` :
-          `${productInfo.sku}-lifestyle`
+          `${productInfo.sku}-${productInfo.colorsArray[i-1].toLowerCase().replaceAll(' ','-')}-lifestyle` :
+            `${productInfo.sku}-lifestyle`,
+          betterFilename: productInfo.colorsArray[i-1] !== '-' ?
+          `${productInfo.productId}-${productInfo.colorsArray[i-1].toLowerCase().replaceAll(' ','-')}-lifestyle` :
+            `${productInfo.productId}-lifestyle`,
         })
       } else {
         return ({
           src: image.src,
           filename: productInfo.colorsArray[i-1] !== '-' ?
-          `${productInfo.sku}-${productInfo.colorsArray[i-1].toLowerCase()}` :
-          productInfo.sku
+          `${productInfo.sku}-${productInfo.colorsArray[i-1].toLowerCase().replaceAll(' ','-')}` :
+            productInfo.sku,
+          betterFilename: productInfo.colorsArray[i-1] !== '-' ?
+          `${productInfo.productId}-${productInfo.colorsArray[i-1].toLowerCase().replaceAll(' ','-')}` :
+            productInfo.productId,
         })
       }
       });
@@ -260,11 +268,14 @@ const page = await browser.newPage();
 // page.setDefaultNavigationTimeout(90000);
 
 console.log("Setting currency to NOK");
-await page.goto("https://vipp.com/en");
+await page.goto("https://vipp.com/en", {waitUntil: 'networkidle0'});
+await page.waitForTimeout(3_000);
 await page.addStyleTag({ content: "* {scroll-behavior: auto !important;}" });
-await page.click("body > div:nth-child(4) > div > div > div > a.btn-menu-burger");
+await page.click('#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll');
+await page.waitForTimeout(3_000);
+await page.click("a.btn-menu-burger");
 try {
-  await page.click("body > div:nth-child(3) > div > div > div.settings > a:nth-child(2) > span.dropdown");
+  await page.click("a:nth-child(2) > span.dropdown");
 } catch (error) {
   await page.waitForTimeout(1500)
   await page.click("body > div.tray-menu > ul.main.menu-level.menu-current.menu-in > li:nth-child(6) > ul > li:nth-child(2) > a");
@@ -275,9 +286,8 @@ try {
   await page.waitForTimeout(1500)
   await page.click("body > div.tray-menu > ul.tray-menu--submenu.menu-level.submenu-4.menu-in > div > ul > li:nth-child(13) > a");
 }
-await page.waitForNavigation();
 
-
+await page.waitForTimeout(3_000);
 
 let allScrapedProducts = [];
 try {
@@ -313,7 +323,7 @@ const parseProductsToColorVariants = (products) => {
         pcpy.names = "Color";
         pcpy.attribute_1 = color;
         pcpy.colors = color;
-        pcpy.sku += `-${color.toLowerCase()}`;
+        pcpy.sku += `-${color.toLowerCase().replaceAll(' ','-')}`;
         pcpy.variantName += ` ${color}`
         newProducts.push(pcpy);
       }
@@ -336,6 +346,7 @@ const csvWriter = createCsvWriter({
   path: 'vippProducts.csv',
   header: [
       {id: 'sku', title: 'sku'},
+      {id: 'productId', title: 'product_id'},
       {id: 'category', title: 'category'},
       {id: 'brand', title: 'brand'},
       {id: 'supplier', title: 'supplier'},
