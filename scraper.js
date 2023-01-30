@@ -5,7 +5,7 @@ import { createObjectCsvWriter as createCsvWriter } from "csv-writer";
 
 const url = "https://vipp.com/en/api/products?";
 const testing = {
-  browser: false, // false: headless   | true: visual browser
+  browser: false,
   links: false     // false: all links  | true: first 5 links
 };
 
@@ -28,7 +28,7 @@ try {
   process.exit(1);
 }
 
-links = links.map(el => `https://vipp.com${el.link}`).filter(e => e!== 'https://vipp.com/en/products/wool-pillow');
+links = links.map(el => `https://vipp.com${el.link}`).filter(e => e !== 'https://vipp.com/en/products/wool-pillow' && e !== 'https://vipp.com/en/products/vipp9w-mounting-kit');
 console.log(`Products to scrape: (${links.length}):`);
 // One link testing:
 // links = ["https://vipp.com/en/products/swivel-chair-w-castors"];
@@ -290,18 +290,15 @@ try {
 await page.waitForTimeout(3_000);
 
 let allScrapedProducts = [];
-try {
-  for( let i = 0; i < links.length; i++ ) {
-    console.log(`[${i+1}/${links.length}] Scraping: ${links[i]}`);
-    const productInfo = await scrapePage(page, links[i]);
-    allScrapedProducts.push(productInfo);
+for( let i = 0; i < links.length; i++ ) {
+    try {
+      console.log(`[${i+1}/${links.length}] Scraping: ${links[i]}`);
+      const productInfo = await scrapePage(page, links[i]);
+      allScrapedProducts.push(productInfo);
+    } catch (error) {
+      console.log(error);
+    }
   }
-} catch (error) {
-  console.log(error);
-  console.log("closing browser");
-  await browser.close();
-  process.exit(1);
-}
 
 console.log("closing browser");
 await browser.close();
